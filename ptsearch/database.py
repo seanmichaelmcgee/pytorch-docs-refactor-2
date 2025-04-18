@@ -94,7 +94,11 @@ class DatabaseManager:
                     metadatas=metadatas[i:end_idx]
                 )
                 logger.info(f"Added batch {batch_num}/{total_batches} ({end_idx - i} chunks)")
-                print(f"Added batch {batch_num}/{total_batches} ({end_idx - i} chunks)")
+                
+                # Print progress every 1,000 chunks to prevent timeouts
+                if (i // 1000) * 1000 == i or end_idx == len(chunks):
+                    print(f"Progress: {end_idx}/{len(chunks)} chunks indexed ({end_idx/len(chunks):.1%})")
+                
             except Exception as e:
                 logger.error(f"Error adding batch {batch_num}: {e}")
                 print(f"Error adding batch {batch_num}: {e}")

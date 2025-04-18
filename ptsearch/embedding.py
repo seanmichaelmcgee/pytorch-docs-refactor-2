@@ -32,6 +32,12 @@ class EmbeddingGenerator:
         self.cache_dir = cache_dir
         self.stats = {"hits": 0, "misses": 0}
         
+        # Validate API key early
+        if not self.api_key:
+            error_msg = "OPENAI_API_KEY not found. Please set this key in your .env file or environment."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
         # Initialize OpenAI client with compatibility handling
         self._initialize_client()
         

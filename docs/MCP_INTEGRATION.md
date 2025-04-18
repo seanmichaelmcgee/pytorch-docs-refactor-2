@@ -8,7 +8,7 @@ The Model Context Protocol is Anthropic's standard for tool integration with Cla
 
 ## Server Implementation
 
-The `scripts/server.py` script implements an MCP-compatible server with the following key components:
+The `ptsearch/mcp.py` module implements an MCP-compatible server with the following key components:
 
 1. **Tool Descriptor**: Defines the tool's capabilities, parameters, and endpoint
 2. **SSE Endpoint**: Provides tool discovery via server-sent events
@@ -29,15 +29,18 @@ conda activate pytorch_docs_search
 # Navigate to the project root
 cd /path/to/pytorch-docs-search
 
-# Run the MCP server
-python scripts/server.py
+# Run the MCP server 
+python -m ptsearch.mcp
+
+# Or use the CLI
+ptsearch server
 ```
 
 You should see the following output:
 ```
-Starting PyTorch Documentation Search Server
+Starting PyTorch Documentation Search Server on 0.0.0.0:5000
 Run: claude mcp add --transport sse pytorch_search http://localhost:5000/events
- * Serving Flask app 'server'
+ * Serving Flask app 'mcp'
  * Debug mode: off
  * Running on all addresses (0.0.0.0)
  * Running on http://127.0.0.1:5000
@@ -130,7 +133,7 @@ All API requests are logged with detailed information. Common issues you might e
 
 ## Architecture
 
-The MCP server implementation in `server.py` follows a simple flow:
+The MCP server implementation in `mcp.py` follows a simple flow:
 
 1. **Tool Discovery**: `/events` endpoint for SSE-based tool registration
 2. **Call Handling**: `/tools/call` endpoint processes tool invocations
@@ -156,9 +159,8 @@ For example, adding a new feature to summarize search results would involve:
 - Modifying the call handler to process this parameter
 - Implementing the summarization logic
 
-## Next Steps
+## Additional Resources
 
-- Add authentication to the API endpoint
-- Implement caching for frequent queries
-- Add streaming responses for large result sets
-- Deploy behind HTTPS for production use
+- [Claude Code Documentation](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview)
+- [MCP Specification](https://docs.anthropic.com/en/docs/agents-and-tools/claude-agents-mcp-101)
+- [PyTorch Documentation](https://pytorch.org/docs/stable/index.html)

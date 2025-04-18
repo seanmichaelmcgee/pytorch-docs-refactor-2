@@ -8,7 +8,7 @@ import sys
 import argparse
 import os
 
-def main():
+def main(argv=None):
     """Main entry point supporting both stdio and SSE transports."""
     parser = argparse.ArgumentParser(description="PyTorch Documentation Search MCP Server")
     parser.add_argument("--transport", choices=["stdio", "sse"], default="stdio",
@@ -18,7 +18,7 @@ def main():
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("--max-results", type=int, default=5, help="Default maximum results to return")
     
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     
     # Initialize components
     from ptsearch.database import DatabaseManager

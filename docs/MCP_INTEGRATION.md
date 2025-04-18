@@ -1,172 +1,187 @@
-# MCP Integration Guide
+# PyTorch Documentation Search - MCP Integration with Claude Code CLI
 
-This document describes how to use the PyTorch Documentation Search Tool with Claude via Model Context Protocol (MCP) integration.
+This guide explains how to set up and use the MCP integration for the PyTorch Documentation Search tool with Claude Code CLI.
 
 ## Overview
 
-The Model Context Protocol is Anthropic's standard for tool integration with Claude. This enables Claude to use external tools, including the PyTorch Documentation Search tool.
+The PyTorch Documentation Search tool is now integrated with Claude Code CLI through the Model-Context Protocol (MCP), allowing Claude to directly access our semantic search capabilities.
 
-## Installation Options
+Key features of this integration:
+- Progressive search with fallback behavior
+- MCP-compliant API endpoint
+- Detailed timing and diagnostics
+- Compatibility with both code and concept queries
+- Structured JSON responses
 
-### Option 1: UVX Installation (Recommended)
+## Setup Instructions
 
-The simplest way to install and use the PyTorch Documentation Search tool is via UVX, which provides a direct execution model:
-
-```bash
-# First, make sure you have the UVX package manager
-pip install uvx
-
-# Add the tool to Claude CLI directly from GitHub
-claude mcp add pytorch_search uvx mcp-server-pytorch
-
-# Or from a local path
-claude mcp add pytorch_search uvx /path/to/pytorch-docs-search
-```
-
-### Option 2: Python Package Installation
-
-Alternatively, you can install the package via pip:
+### 1. Activate the Conda Environment
 
 ```bash
-pip install mcp-server-pytorch
+# Activate the environment
+conda activate pytorch_docs_search
 
-# Register with Claude CLI
-claude mcp add pytorch_search python -m mcp_server_pytorch
+# OR with Mamba
+mamba activate pytorch_docs_search
 ```
 
-### Option 3: Running as a Server (Legacy SSE Mode)
-
-If you prefer to run the tool as a server using SSE transport:
+### 2. Start the Flask Server
 
 ```bash
-# Start the server
-python -m mcp_server_pytorch --transport sse
+# Navigate to the project root
+cd /path/to/pytorch-docs-search
 
-# Then in another terminal
-claude mcp add --transport sse pytorch_search http://localhost:5000/events
+# Run the Flask server
+python app.py
 ```
 
-## Implementation Details
+You should see the following output:
+```
+=== PyTorch Documentation Search API ===
+Server running at: http://localhost:5000/search
+Register with Claude Code CLI using:
+claude mcp add mcp__pytorch_docs__semantic_search http://localhost:5000/search --transport sse
 
-### Transports
+Press Ctrl+C to stop the server
+```
 
-The tool supports two transport mechanisms:
+### 3. Register the Tool with Claude Code CLI
 
-1. **STDIO Transport (Default)**
-   - Direct execution model
-   - No server to maintain
-   - Runs on demand
+In a new terminal window, run:
 
-2. **SSE Transport (Alternative)**
-   - Server-based model
-   - Runs continuously
-   - Required for some integration scenarios
-
-### Tool Definition
-
-The PyTorch documentation search tool is defined with the following parameters:
-
-- **Tool Name**: `search_pytorch_docs`
-- **Type**: `function`
-- **Description**: "Search PyTorch documentation or examples. Call when the user asks about a PyTorch API, error message, best-practice or needs a code snippet."
-
-### Input Parameters
-
-- `query` (string, required): The search query
-- `num_results` (integer, optional, default=5): Number of results to return
-- `filter` (string, optional, enum=["code", "text", ""]): Filter results by type
-
-### Response Format
-
-```json
-{
-  "query": "tensor operations",
-  "results": [
-    {
-      "title": "torch.Tensor",
-      "chunk_type": "text",
-      "source": "https://pytorch.org/docs/stable/tensors.html",
-      "score": 0.923,
-      "snippet": "A PyTorch Tensor is a multi-dimensional matrix containing elements of a single data type..."
+```bash
+claude mcp add mcp__pytorch_docs__semantic_search "http://localhost:5000/search" \
+  --description "Search PyTorch documentation and examples using code-aware semantic search" \
+  --transport sse \
+  --input-schema '{
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "The search query about PyTorch"
+      },
+      "num_results": {
+        "type": "integer",
+        "description": "Number of results to return (default: 5)"
+      },
+      "filter": {
+        "type": "string",
+        "enum": ["code", "text", null],
+        "description": "Filter results by type"
+      }
     },
-    ...
-  ]
-}
+    "required": ["query"]
+  }'
 ```
 
-## Using with Claude Code
+### 4. Verify Registration
 
-Once registered, you can simply ask Claude Code about PyTorch:
-
-```
-How do I create a custom Dataset in PyTorch?
-What's the difference between torch.nn.Module and torch.nn.functional?
-Show me how to implement a custom autograd function.
-```
-
-Claude will automatically call the PyTorch documentation search tool when appropriate.
-
-## Debugging and Verification
-
-### Verify Registration
+Check that the tool is registered correctly:
 
 ```bash
-# List registered MCP tools
 claude mcp list
 ```
 
-You should see `search_pytorch_docs` in the list of available tools.
+You should see `mcp__pytorch_docs__semantic_search` in the list of available tools.
 
-### Test Direct Invocation
+## Usage
+
+### Testing with CLI
+
+To test the tool directly from the command line:
 
 ```bash
-# Test the tool directly
-claude run tool search_pytorch_docs --input '{"query": "How to use DataLoader"}'
+claude run tool mcp__pytorch_docs__semantic_search --input '{"query": "freeze layers in PyTorch"}'
 ```
 
-### MCP Inspector (for advanced debugging)
-
-For detailed debugging of the MCP protocol, you can use the MCP inspector:
+For filtering results:
 
 ```bash
-# Install the inspector
-npm install -g @modelcontextprotocol/inspector
+claude run tool mcp__pytorch_docs__semantic_search --input '{"query": "batch normalization", "filter": "code"}'
+```
 
-# Use it with UVX
-npx @modelcontextprotocol/inspector uvx mcp-server-pytorch
+To retrieve more results:
 
-# Or with direct Python execution
-npx @modelcontextprotocol/inspector python -m mcp_server_pytorch
+```bash
+claude run tool mcp__pytorch_docs__semantic_search --input '{"query": "autograd example", "num_results": 10}'
+```
+
+### Using with Claude CLI
+
+When using Claude CLI, you can integrate the tool into your conversations:
+
+```bash
+claude run
+```
+
+Then within your conversation with Claude, you can ask about PyTorch topics and Claude will automatically use the tool to search the documentation.
+
+## Monitoring and Logging
+
+All API requests and responses are logged to `flask_api.log` in the project root directory. This file contains detailed information about:
+
+- Request timestamps and content
+- Query processing stages
+- Search timing information
+- Any errors encountered
+- Result counts and metadata
+
+To monitor the log in real-time:
+
+```bash
+tail -f flask_api.log
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **API Key Missing**
-   - Error: "OPENAI_API_KEY not found"
-   - Solution: Set the OPENAI_API_KEY environment variable or add it to a .env file
+1. **Tool Registration Fails**
+   - Ensure the Flask server is running
+   - Check that you have the correct URL (http://localhost:5000/search)
+   - Verify you have the latest Claude CLI installed
 
-2. **Tool Not Found**
-   - Error: "Tool not found"
-   - Solution: Verify registration with `claude mcp list`
+2. **Server Won't Start**
+   - Verify the port 5000 is available
+   - Ensure all dependencies are installed in your environment
+   - Check for any import errors in the console output
 
-3. **Connection Refused (SSE mode)**
-   - Error: "Connection refused"
-   - Solution: Ensure the server is running on the specified port
+3. **No Results Returned**
+   - Verify that the ChromaDB database has been populated
+   - Check that the OpenAI API key is set correctly in your environment
+   - Look for error messages in the flask_api.log
+
+4. **Partial Results**
+   - Check the `is_partial` flag in the response
+   - Look for `stages_timed_out` to identify which stage failed
+   - The system will return as much information as available even if some stages fail
+
+### Getting Help
+
+If you encounter issues not covered here, check:
+1. The main Flask API log: `flask_api.log`
+2. The Python error output in the terminal running the Flask server
+3. The Claude CLI error messages when attempting to use the tool
 
 ## Architecture
 
-The MCP implementation follows a simple flow:
+The MCP integration follows a three-stage pipeline:
 
-1. **Initialization**: Sets up search components (database, embedding generator, search engine)
-2. **Transport Handler**: Processes messages based on transport type (stdio or SSE)
-3. **Tool Definition**: Maintains a consistent tool descriptor across both transports
-4. **Search Execution**: Calls into the main search engine with query parameters
-5. **Response Formatting**: Returns formatted search results to Claude
+1. **Query Processing**: Analyzes the query and generates embeddings
+2. **Database Search**: Searches ChromaDB for relevant matches 
+3. **Result Formatting**: Structures and ranks results based on query intent
 
-## Additional Resources
+Each stage is designed to fail gracefully, providing as much information as possible even if later stages encounter errors.
 
-- [Claude Code Documentation](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview)
-- [MCP Specification](https://docs.anthropic.com/en/docs/agents-and-tools/claude-agents-mcp-101)
-- [PyTorch Documentation](https://pytorch.org/docs/stable/index.html)
+## Security Notes
+
+- The server binds to all interfaces (0.0.0.0) by default; in production, consider restricting this
+- The API doesn't implement authentication; if exposed publicly, add API key validation
+- OpenAI API keys are loaded from environment variables; ensure they're properly secured
+
+## Next Steps
+
+- Add authentication to the API endpoint
+- Implement caching for frequent queries
+- Add support for more filter types
+- Create a dashboard for monitoring API usage and performance

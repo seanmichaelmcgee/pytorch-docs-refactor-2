@@ -26,6 +26,8 @@ dependencies = [
 ptsearch = "ptsearch.cli:main"
 mcp-server-pytorch = "mcp_server_pytorch.__main__:main"
 
-[tool.setuptools.packages.find]
-where = "."
-include = ["ptsearch*", "mcp_server_pytorch*"]
+[tool.setuptools.packages]
+find = {where = ["."]}
+
+[tool.setuptools.package-data]
+"*" = ["*.json", "*.txt", "*.md"]

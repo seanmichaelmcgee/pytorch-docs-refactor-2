@@ -29,6 +29,7 @@ if not OPENAI_API_KEY:
 TOOL_NAME = "search_pytorch_docs"
 TOOL_DESCRIPTOR = {
     "name": TOOL_NAME,
+    "schema_version": "1.0",
     "type": "function",
     "description": (
         "Search PyTorch documentation or examples. Call when the user asks "

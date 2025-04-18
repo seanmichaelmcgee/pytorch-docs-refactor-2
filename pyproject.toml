@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-server-pytorch"
-version = "0.1.0"
+version = "0.2.0"
 description = "PyTorch Documentation Search Tool with MCP integration"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,6 +20,8 @@ dependencies = [
     "numpy>=1.26.4",
     "werkzeug>=2.2.3",
     "flask-cors>=3.0.10",
+    "pytest>=7.3.1",
+    "pytest-cov>=4.1.0",
 ]
 
 [project.scripts]
@@ -31,3 +33,16 @@ find = {where = ["."]}
 
 [tool.setuptools.package-data]
 "*" = ["*.json", "*.txt", "*.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 88

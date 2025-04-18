@@ -13,6 +13,7 @@ This tool enables developers to efficiently search PyTorch documentation using n
 - Query intent detection for better results ranking
 - Basic embedding caching for efficiency
 - Claude Code integration through Model Context Protocol (MCP)
+- Modular architecture with support for multiple transport methods
 
 ## Getting Started
 
@@ -64,8 +65,8 @@ claude mcp list
 4. Register with Claude CLI:
    ```bash
    # If you want to use direct execution (stdio)
-   claude mcp add pytorch_search python -m mcp_server_pytorch
-
+   ./register_mcp.sh
+   
    # If you want to use server mode (SSE)
    # First, start the server
    python -m mcp_server_pytorch --transport sse
@@ -109,6 +110,58 @@ Show me how to implement a custom autograd function.
 
 Claude will automatically call the PyTorch documentation search tool when appropriate.
 
+## Running Tests
+
+Run the protocol test to verify the MCP implementation:
+
+```bash
+# Test the STDIO transport
+python -m tests.test_mcp_protocol
+
+# Run unit tests
+pytest tests/unit/
+```
+
+## Architecture
+
+The tool uses a modular architecture with these components:
+
+### Core Components
+
+- **Core** (`ptsearch/core/`): Core functionality for search and embedding
+  - `database.py`: ChromaDB integration for vector search
+  - `embedding.py`: OpenAI API integration for embedding generation
+  - `search.py`: Main search engine with query processing
+  - `formatter.py`: Result formatting and ranking
+
+- **Transport** (`ptsearch/transport/`): MCP transport implementations
+  - `base.py`: Base transport interface
+  - `stdio.py`: STDIO transport for direct execution
+  - `sse.py`: SSE transport for server mode
+
+- **Protocol** (`ptsearch/protocol/`): MCP protocol handling
+  - `descriptor.py`: Tool descriptor definition
+  - `handler.py`: MCP protocol message handling
+
+- **Config** (`ptsearch/config/`): Configuration management
+  - `settings.py`: Settings with environment validation
+
+- **Utils** (`ptsearch/utils/`): Shared utilities
+  - `logging.py`: Enhanced logging with context
+  - `error.py`: Error hierarchy and formatting
+
+## Configuration
+
+The tool can be configured through environment variables:
+
+- `OPENAI_API_KEY`: Your OpenAI API key
+- `PTSEARCH_EMBEDDING_MODEL`: Embedding model to use (default: text-embedding-3-large)
+- `PTSEARCH_MAX_RESULTS`: Default number of search results (default: 5)
+- `PTSEARCH_DB_DIR`: ChromaDB storage location (default: ./data/chroma_db)
+- `PTSEARCH_COLLECTION_NAME`: Name of the ChromaDB collection (default: pytorch_docs)
+- `PTSEARCH_CACHE_DIR`: Embedding cache directory (default: ./data/embedding_cache)
+- `MCP_LOG_FILE`: Log file path for MCP server (default: mcp_server.log)
+
 ## Manual Search
 
 You can also search the documentation directly using the command-line interface:
@@ -123,53 +176,26 @@ Or use interactive mode:
 ptsearch search --interactive
 ```
 
-## Project Structure
+## Troubleshooting
 
-```
-pytorch-docs-search/
-├── ptsearch/           # Core library modules 
-│   ├── config.py       # Configuration module
-│   ├── document.py     # Document processing module
-│   ├── embedding.py    # Embedding generation module
-│   ├── database.py     # Database integration module
-│   ├── search.py       # Search functionality module
-│   ├── formatter.py    # Result formatting module
-│   ├── stdio.py        # STDIO transport for MCP
-│   └── mcp.py          # SSE transport for MCP
-├── mcp_server_pytorch/ # Unified MCP package
-│   ├── __init__.py     # Package initialization
-│   └── __main__.py     # Entry point for MCP server
-├── scripts/            # Legacy command-line scripts
-├── data/               # Data storage
-├── .uvx/               # UVX package configuration
-├── environment.yml     # Conda environment
-└── README.md           # This file
-```
+### Common Issues
 
-## Configuration
+1. **Connection Timeout**
+   - Ensure your OPENAI_API_KEY is correctly set
+   - Check if the ChromaDB database has been properly initialized
+   - Verify your environment has all required dependencies
 
-Edit the `.env` file to configure:
+2. **No Results Returned**
+   - Make sure you've processed and indexed documentation
+   - Check the server logs for any errors
 
-- `OPENAI_API_KEY`: Your OpenAI API key
-- `CHUNK_SIZE`: Size of document chunks (default: 1000)
-- `OVERLAP_SIZE`: Overlap between chunks (default: 200)
-- `MAX_RESULTS`: Default number of search results (default: 5)
-- `DB_DIR`: ChromaDB storage location (default: ./data/chroma_db)
-- `COLLECTION_NAME`: Name of the ChromaDB collection (default: pytorch_docs)
+3. **Tool Not Found**
+   - Verify the tool is correctly registered with `claude mcp list`
+   - Check that the tool name matches in both registration and descriptor
 
-Advanced settings can be modified in `ptsearch/config.py`.
+### Checking Logs
 
-## How It Works
-
-1. **Document Processing**: Uses Tree-sitter to parse markdown and Python files, preserving structure. Chunks documents intelligently, keeping code blocks intact where possible.
-
-2. **Embedding Generation**: Creates vector representations of text using OpenAI's embedding models with basic caching for efficiency.
-
-3. **Vector Database**: Stores embeddings in ChromaDB for efficient similarity search.
-
-4. **Query Processing**: Analyzes queries to determine intent (code vs. concept) and finds the most relevant matches.
-
-5. **Result Ranking**: Boosts code results for code queries and text results for concept queries.
+By default, the server logs to stderr and to a file named `mcp_server.log`. Check this file for detailed information about any issues.
 
 ## License
 

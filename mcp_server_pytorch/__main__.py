@@ -7,75 +7,96 @@ Provides semantic search over PyTorch documentation with code-aware results.
 import sys
 import argparse
 import os
-import logging
+import signal
+import time
 
-# Setup logging
-log_file = os.environ.get("MCP_LOG_FILE", "mcp_server.log")
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(log_file),
-        logging.StreamHandler(sys.stderr)
-    ]
-)
-logger = logging.getLogger("mcp_server")
+from ptsearch.utils import logger
+from ptsearch.utils.error import ConfigError
+from ptsearch.config import settings
+from ptsearch.core import DatabaseManager, EmbeddingGenerator, SearchEngine
+from ptsearch.protocol import MCPProtocolHandler
+from ptsearch.transport import STDIOTransport, SSETransport
+
+
+def search_handler(args: dict) -> dict:
+    """Handle search requests from the MCP protocol."""
+    # Initialize components
+    db_manager = DatabaseManager()
+    embedding_generator = EmbeddingGenerator()
+    search_engine = SearchEngine(db_manager, embedding_generator)
+    
+    # Extract search parameters
+    query = args.get("query", "")
+    n = int(args.get("num_results", settings.max_results))
+    filter_type = args.get("filter", "")
+    
+    # Handle empty string filter as None
+    if filter_type == "":
+        filter_type = None
+    
+    # Execute search
+    return search_engine.search(query, n, filter_type)
+
+
+def setup_signal_handlers(transport):
+    """Set up signal handlers for graceful shutdown."""
+    def signal_handler(sig, frame):
+        logger.info(f"Received signal {sig}, shutting down")
+        transport.stop()
+        sys.exit(0)
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
 
 def main(argv=None):
-    """Main entry point supporting both stdio and SSE transports."""
-    logger.debug("Server starting")
-    logger.debug(f"Python version: {sys.version}")
-    logger.debug(f"Current directory: {os.getcwd()}")
+    """Main entry point for MCP server."""
+    # Configure logging
+    log_file = os.environ.get("MCP_LOG_FILE", "mcp_server.log")
+    import logging
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logging.getLogger().addHandler(file_handler)
     
     parser = argparse.ArgumentParser(description="PyTorch Documentation Search MCP Server")
     parser.add_argument("--transport", choices=["stdio", "sse"], default="stdio",
-                       help="Transport mechanism to use (default: stdio)")
+                      help="Transport mechanism to use (default: stdio)")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind to for SSE transport")
     parser.add_argument("--port", type=int, default=5000, help="Port to bind to for SSE transport")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
-    parser.add_argument("--max-results", type=int, default=5, help="Default maximum results to return")
     
     args = parser.parse_args(argv)
     
-    # Verify environment variables
-    if "OPENAI_API_KEY" not in os.environ:
-        logger.error("OPENAI_API_KEY not set in environment")
-        print("Error: OPENAI_API_KEY not found in environment variables.", file=sys.stderr)
-        print("Please set this key in your .env file or environment.", file=sys.stderr)
-        sys.exit(1)
+    # Log server startup
+    logger.info("Starting PyTorch Documentation Search MCP Server",
+               transport=args.transport,
+               python_version=sys.version,
+               current_dir=os.getcwd())
     
-    logger.debug(f"Using transport: {args.transport}")
+    # Validate settings
+    errors = settings.validate()
+    if errors:
+        for key, error in errors.items():
+            logger.error(f"Configuration error", field=key, error=error)
+        raise ConfigError("Invalid configuration", details=errors)
+    
+    # Initialize protocol handler
+    protocol_handler = MCPProtocolHandler(search_handler)
     
     try:
-        # Initialize components
-        logger.debug("Importing required modules")
-        from ptsearch.database import DatabaseManager
-        from ptsearch.embedding import EmbeddingGenerator
-        from ptsearch.search import SearchEngine
-        
-        logger.debug("Initializing search components")
-        
-        # Initialize search components
-        db_manager = DatabaseManager()
-        embedding_generator = EmbeddingGenerator()
-        search_engine = SearchEngine(db_manager, embedding_generator)
-        
-        logger.debug("Search components initialized successfully")
-        
-        # Run appropriate transport
+        # Initialize transport
         if args.transport == "stdio":
-            logger.debug("Starting STDIO transport")
-            from ptsearch.stdio import StdioMcpServer
-            server = StdioMcpServer()
-            server.start()
+            transport = STDIOTransport(protocol_handler)
         else:
-            logger.debug(f"Starting SSE transport on {args.host}:{args.port}")
-            from ptsearch.mcp import run_server
-            run_server(host=args.host, port=args.port, debug=args.debug)
-            
+            transport = SSETransport(protocol_handler, args.host, args.port)
+        
+        # Setup signal handlers
+        setup_signal_handlers(transport)
+        
+        # Start transport
+        transport.start()
     except Exception as e:
-        logger.error(f"Error during startup: {e}", exc_info=True)
-        print(f"Error during startup: {e}", file=sys.stderr)
+        logger.exception(f"Fatal error", error=str(e))
         sys.exit(1)
 
 

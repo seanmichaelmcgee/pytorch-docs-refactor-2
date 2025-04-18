@@ -7,6 +7,9 @@ cd "$(dirname "$0")"
 # Enable debug mode
 set -x
 
+# Export log file path for detailed logging
+export MCP_LOG_FILE="./mcp_server.log"
+
 # Source conda to ensure it's available
 if [ -f "$HOME/miniconda3/etc/profile.d/conda.sh" ]; then
     source "$HOME/miniconda3/etc/profile.d/conda.sh"

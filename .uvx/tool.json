@@ -16,11 +16,6 @@
     "openai",
     "flask",
     "chromadb",
-    "tree-sitter",
-    "tree-sitter-languages",
-    "python-dotenv",
-    "tqdm",
-    "numpy",
     "flask-cors"
   ]
 }

@@ -3,7 +3,7 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pytorch-docs-search"
+name = "mcp-server-pytorch"
 version = "0.1.0"
 description = "PyTorch Documentation Search Tool with MCP integration"
 readme = "README.md"
@@ -24,9 +24,8 @@ dependencies = [
 
 [project.scripts]
 ptsearch = "ptsearch.cli:main"
-mcp-server-pytorch = "ptsearch.mcp:main"
-mcp-server-pytorch-stdio = "ptsearch.stdio:main"
+mcp-server-pytorch = "mcp_server_pytorch.__main__:main"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["ptsearch*"]
+where = "."
+include = ["ptsearch*", "mcp_server_pytorch*"]

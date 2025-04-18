@@ -1,4 +1,4 @@
-# PyTorch Documentation Search Tool (Refactored)
+# PyTorch Documentation Search Tool
 
 A streamlined semantic search system for PyTorch documentation that understands both code and text, providing relevant results for technical queries.
 
@@ -12,7 +12,7 @@ This tool enables developers to efficiently search PyTorch documentation using n
 - Semantic search powered by OpenAI embeddings
 - Query intent detection for better results ranking
 - Basic embedding caching for efficiency
-- Claude Code CLI integration
+- Claude Code integration through Model Context Protocol (MCP)
 
 ## Getting Started
 
@@ -23,6 +23,25 @@ This tool enables developers to efficiently search PyTorch documentation using n
 - Conda environment (recommended)
 
 ### Installation
+
+#### Option 1: Direct Installation with UVX (Recommended)
+
+Using UVX provides a seamless integration with Claude Code:
+
+```bash
+# First, make sure you have the UVX package manager
+pip install uvx
+
+# Add the tool to Claude CLI directly from GitHub or local path
+claude mcp add pytorch_search uvx mcp-server-pytorch
+# or from a local path
+claude mcp add pytorch_search uvx /path/to/pytorch-docs-search
+
+# Verify it's registered
+claude mcp list
+```
+
+#### Option 2: Traditional Setup
 
 1. Clone the repository:
    ```bash
@@ -42,14 +61,24 @@ This tool enables developers to efficiently search PyTorch documentation using n
    # Edit .env file to add your OpenAI API key
    ```
 
-## Usage
+4. Register with Claude CLI:
+   ```bash
+   # If you want to use direct execution (stdio)
+   claude mcp add pytorch_search python -m mcp_server_pytorch
 
-### Processing Documentation
+   # If you want to use server mode (SSE)
+   # First, start the server
+   python -m mcp_server_pytorch --transport sse
+   # Then in another terminal
+   claude mcp add --transport sse pytorch_search http://localhost:5000/events
+   ```
+
+## Processing Documentation
 
 Process your PyTorch documentation into chunks:
 
 ```bash
-python scripts/process.py --docs-dir /path/to/pytorch/docs
+ptsearch process --docs-dir /path/to/pytorch/docs
 ```
 
 ### Generating Embeddings
@@ -57,7 +86,7 @@ python scripts/process.py --docs-dir /path/to/pytorch/docs
 Generate embeddings for the processed chunks:
 
 ```bash
-python scripts/embed.py --input-file ./data/chunks.json
+ptsearch embed --input-file ./data/chunks.json
 ```
 
 ### Indexing to Database
@@ -65,55 +94,54 @@ python scripts/embed.py --input-file ./data/chunks.json
 Load the embeddings into the ChromaDB vector database:
 
 ```bash
-python scripts/index.py --input-file ./data/chunks_with_embeddings.json
+ptsearch index --input-file ./data/chunks_with_embeddings.json
 ```
 
-### Searching Documentation
+## Using with Claude Code
 
-Search the documentation using the command-line interface:
+Once registered, you can simply ask Claude Code about PyTorch:
+
+```
+How do I create a custom Dataset in PyTorch?
+What's the difference between torch.nn.Module and torch.nn.functional?
+Show me how to implement a custom autograd function.
+```
+
+Claude will automatically call the PyTorch documentation search tool when appropriate.
+
+## Manual Search
+
+You can also search the documentation directly using the command-line interface:
 
 ```bash
-python scripts/search.py "How to implement a custom autograd function"
+ptsearch search "How to implement a custom autograd function"
 ```
 
 Or use interactive mode:
 
 ```bash
-python scripts/search.py --interactive
-```
-
-### Claude Code Integration
-
-Start the MCP-compatible server for Claude Code integration:
-
-```bash
-python scripts/server.py
-```
-
-Then register the tool with Claude CLI:
-
-```bash
-claude mcp add --transport sse pytorch_search http://localhost:5000/events
+ptsearch search --interactive
 ```
 
 ## Project Structure
 
 ```
 pytorch-docs-search/
-├── ptsearch/           # Core library modules
+├── ptsearch/           # Core library modules 
 │   ├── config.py       # Configuration module
 │   ├── document.py     # Document processing module
 │   ├── embedding.py    # Embedding generation module
 │   ├── database.py     # Database integration module
 │   ├── search.py       # Search functionality module
-│   └── formatter.py    # Result formatting module
-├── scripts/            # Command-line scripts
-│   ├── process.py      # Document processing script
-│   ├── embed.py        # Embedding generation script
-│   ├── index.py        # Database indexing script
-│   ├── search.py       # Search script 
-│   └── server.py       # Claude integration server
+│   ├── formatter.py    # Result formatting module
+│   ├── stdio.py        # STDIO transport for MCP
+│   └── mcp.py          # SSE transport for MCP
+├── mcp_server_pytorch/ # Unified MCP package
+│   ├── __init__.py     # Package initialization
+│   └── __main__.py     # Entry point for MCP server
+├── scripts/            # Legacy command-line scripts
 ├── data/               # Data storage
+├── .uvx/               # UVX package configuration
 ├── environment.yml     # Conda environment
 └── README.md           # This file
 ```
@@ -153,4 +181,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [OpenAI API](https://platform.openai.com/docs/guides/embeddings)
 - [ChromaDB](https://docs.trychroma.com/)
 - [Tree-sitter](https://tree-sitter.github.io/tree-sitter/)
-- [Claude Code CLI](https://www.anthropic.com/claude)
+- [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview)
+- [Model Context Protocol](https://docs.anthropic.com/en/docs/agents-and-tools/claude-agents-mcp-101)

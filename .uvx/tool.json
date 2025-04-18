@@ -3,11 +3,13 @@
   "version": "0.1.0",
   "description": "PyTorch Documentation Search Tool with MCP integration",
   "entrypoint": {
-    "sse": {
-      "command": "mcp-server-pytorch"
-    },
     "stdio": {
-      "command": "mcp-server-pytorch-stdio"
+      "command": "python",
+      "args": ["-m", "mcp_server_pytorch"]
+    },
+    "sse": {
+      "command": "python",
+      "args": ["-m", "mcp_server_pytorch", "--transport", "sse"]
     }
   },
   "requires": [

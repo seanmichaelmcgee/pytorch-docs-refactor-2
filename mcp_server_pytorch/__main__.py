@@ -64,6 +64,7 @@ def main(argv=None):
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind to for SSE transport")
     parser.add_argument("--port", type=int, default=5000, help="Port to bind to for SSE transport")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument("--data-dir", help="Path to the data directory containing chunks.json and chunks_with_embeddings.json")
     
     args = parser.parse_args(argv)
     
@@ -72,6 +73,16 @@ def main(argv=None):
                transport=args.transport,
                python_version=sys.version,
                current_dir=os.getcwd())
+    
+    # Set data directory if provided
+    if args.data_dir:
+        # Update paths to include the provided data directory
+        data_dir = os.path.abspath(args.data_dir)
+        logger.info(f"Using custom data directory: {data_dir}")
+        settings.default_chunks_path = os.path.join(data_dir, "chunks.json")
+        settings.default_embeddings_path = os.path.join(data_dir, "chunks_with_embeddings.json")
+        settings.db_dir = os.path.join(data_dir, "chroma_db")
+        settings.cache_dir = os.path.join(data_dir, "embedding_cache")
     
     # Validate settings
     errors = settings.validate()

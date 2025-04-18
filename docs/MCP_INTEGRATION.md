@@ -15,66 +15,59 @@ Key features of this integration:
 
 ## Setup Instructions
 
-### 1. Activate the Conda Environment
+### 1. Install Required Dependencies
+
+First, set up the environment using conda:
 
 ```bash
-# Activate the environment
+# Create and activate the conda environment
+conda env create -f environment.yml
 conda activate pytorch_docs_search
-
-# OR with Mamba
-mamba activate pytorch_docs_search
 ```
 
-### 2. Start the Flask Server
+### 2. Set Environment Variables
+
+The server requires an OpenAI API key for embeddings:
 
 ```bash
-# Navigate to the project root
-cd /path/to/pytorch-docs-search
-
-# Run the Flask server
-python app.py
+# Export your OpenAI API key
+export OPENAI_API_KEY="your-api-key-here"
 ```
 
-You should see the following output:
-```
-=== PyTorch Documentation Search API ===
-Server running at: http://localhost:5000/search
-Register with Claude Code CLI using:
-claude mcp add mcp__pytorch_docs__semantic_search http://localhost:5000/search --transport sse
+### 3. Start the Server
 
-Press Ctrl+C to stop the server
-```
+You have two options for running the server:
 
-### 3. Register the Tool with Claude Code CLI
-
-In a new terminal window, run:
+#### Option A: With UVX (Recommended)
 
 ```bash
-claude mcp add mcp__pytorch_docs__semantic_search "http://localhost:5000/search" \
-  --description "Search PyTorch documentation and examples using code-aware semantic search" \
-  --transport sse \
-  --input-schema '{
-    "type": "object",
-    "properties": {
-      "query": {
-        "type": "string",
-        "description": "The search query about PyTorch"
-      },
-      "num_results": {
-        "type": "integer",
-        "description": "Number of results to return (default: 5)"
-      },
-      "filter": {
-        "type": "string",
-        "enum": ["code", "text", null],
-        "description": "Filter results by type"
-      }
-    },
-    "required": ["query"]
-  }'
+# Run directly with UVX
+uvx mcp-server-pytorch --transport sse --host 127.0.0.1 --port 5000 --data-dir ./data
+
+# Or use the provided script
+./run_mcp_uvx.sh
 ```
 
-### 4. Verify Registration
+#### Option B: With Stdio Transport
+
+```bash
+# Run with stdio transport
+./run_mcp.sh
+```
+
+### 4. Register the Tool with Claude Code CLI
+
+Register the tool with Claude CLI using the exact name from the tool descriptor:
+
+```bash
+# For SSE transport
+claude mcp add search_pytorch_docs http://localhost:5000/events --transport sse
+
+# For stdio transport
+claude mcp add search_pytorch_docs stdio ./run_mcp.sh
+```
+
+### 5. Verify Registration
 
 Check that the tool is registered correctly:
 
@@ -82,7 +75,7 @@ Check that the tool is registered correctly:
 claude mcp list
 ```
 
-You should see `mcp__pytorch_docs__semantic_search` in the list of available tools.
+You should see `search_pytorch_docs` in the list of available tools.
 
 ## Usage
 
@@ -91,19 +84,19 @@ You should see `mcp__pytorch_docs__semantic_search` in the list of available too
 To test the tool directly from the command line:
 
 ```bash
-claude run tool mcp__pytorch_docs__semantic_search --input '{"query": "freeze layers in PyTorch"}'
+claude run tool search_pytorch_docs --input '{"query": "freeze layers in PyTorch"}'
 ```
 
 For filtering results:
 
 ```bash
-claude run tool mcp__pytorch_docs__semantic_search --input '{"query": "batch normalization", "filter": "code"}'
+claude run tool search_pytorch_docs --input '{"query": "batch normalization", "filter": "code"}'
 ```
 
 To retrieve more results:
 
 ```bash
-claude run tool mcp__pytorch_docs__semantic_search --input '{"query": "autograd example", "num_results": 10}'
+claude run tool search_pytorch_docs --input '{"query": "autograd example", "num_results": 10}'
 ```
 
 ### Using with Claude CLI
@@ -116,9 +109,26 @@ claude run
 
 Then within your conversation with Claude, you can ask about PyTorch topics and Claude will automatically use the tool to search the documentation.
 
+## Command Line Options
+
+The MCP server accepts the following command line options:
+
+- `--transport {stdio,sse}`: Transport mechanism (default: stdio)
+- `--host HOST`: Host to bind to for SSE transport (default: 0.0.0.0)
+- `--port PORT`: Port to bind to for SSE transport (default: 5000)
+- `--debug`: Enable debug mode
+- `--data-dir PATH`: Path to the data directory containing chunks.json and chunks_with_embeddings.json
+
+## Data Directory Structure
+
+The tool expects the following files in the data directory:
+- `chunks.json`: The raw document chunks
+- `chunks_with_embeddings.json`: Cached document embeddings
+- `chroma_db/`: Vector database files
+
 ## Monitoring and Logging
 
-All API requests and responses are logged to `flask_api.log` in the project root directory. This file contains detailed information about:
+All API requests and responses are logged to `mcp_server.log` in the project root directory. This file contains detailed information about:
 
 - Request timestamps and content
 - Query processing stages
@@ -129,7 +139,7 @@ All API requests and responses are logged to `flask_api.log` in the project root
 To monitor the log in real-time:
 
 ```bash
-tail -f flask_api.log
+tail -f mcp_server.log
 ```
 
 ## Troubleshooting
@@ -137,47 +147,53 @@ tail -f flask_api.log
 ### Common Issues
 
 1. **Tool Registration Fails**
-   - Ensure the Flask server is running
-   - Check that you have the correct URL (http://localhost:5000/search)
+   - Ensure the server is running
+   - Check that you have the correct URL (http://localhost:5000/events)
    - Verify you have the latest Claude CLI installed
+   - Make sure the tool name matches exactly: `search_pytorch_docs`
 
-2. **Server Won't Start**
-   - Verify the port 5000 is available
-   - Ensure all dependencies are installed in your environment
+2. **Server Won't Start with ConfigError**
+   - Ensure the `OPENAI_API_KEY` is set in your environment
    - Check for any import errors in the console output
+   - Verify the port 5000 is available
 
 3. **No Results Returned**
-   - Verify that the ChromaDB database has been populated
-   - Check that the OpenAI API key is set correctly in your environment
-   - Look for error messages in the flask_api.log
+   - Verify that the data files exist in the specified data directory
+   - Check that the chunks and embeddings files have the expected content
+   - Check the log file for detailed error messages
 
-4. **Partial Results**
-   - Check the `is_partial` flag in the response
-   - Look for `stages_timed_out` to identify which stage failed
-   - The system will return as much information as available even if some stages fail
+4. **Tool Not Found in Claude CLI**
+   - Make sure the tool name in your registration command matches the descriptor (`search_pytorch_docs`)
+   - Ensure the server is running when you try to use the tool
 
 ### Getting Help
 
 If you encounter issues not covered here, check:
-1. The main Flask API log: `flask_api.log`
-2. The Python error output in the terminal running the Flask server
+1. The main log file: `mcp_server.log`
+2. The Python error output in the terminal running the server
 3. The Claude CLI error messages when attempting to use the tool
 
 ## Architecture
 
-The MCP integration follows a three-stage pipeline:
+The MCP integration consists of:
 
-1. **Query Processing**: Analyzes the query and generates embeddings
-2. **Database Search**: Searches ChromaDB for relevant matches 
-3. **Result Formatting**: Structures and ranks results based on query intent
+1. `mcp_server_pytorch/__main__.py`: Main entry point
+2. `ptsearch/protocol/`: MCP protocol implementation
+3. `ptsearch/transport/`: Transport implementations (SSE/stdio)
+4. `ptsearch/core/`: Core search functionality
 
-Each stage is designed to fail gracefully, providing as much information as possible even if later stages encounter errors.
+The standard flow is:
+1. Client sends a query
+2. MCP protocol handler processes the message
+3. Query is passed to the search handler
+4. Vector search happens via the SearchEngine
+5. Results are formatted and returned
 
 ## Security Notes
 
-- The server binds to all interfaces (0.0.0.0) by default; in production, consider restricting this
-- The API doesn't implement authentication; if exposed publicly, add API key validation
+- The server binds to 127.0.0.1 by default with UVX; only change to 0.0.0.0 if needed
 - OpenAI API keys are loaded from environment variables; ensure they're properly secured
+- The UVX tool.json can use ${OPENAI_API_KEY} to reference environment variables
 
 ## Next Steps
 

@@ -4,11 +4,12 @@
 # Set current directory to script location
 cd "$(dirname "$0")"
 
-# Source conda to ensure it's available
-source ~/miniconda3/etc/profile.d/conda.sh
-
-# Activate the conda environment
-conda activate pytorch_docs_search
+# Export OpenAI API key if not already set
+if [ -z "$OPENAI_API_KEY" ]; then
+  echo "Warning: OPENAI_API_KEY environment variable not set."
+  echo "The server will fail to start without this variable."
+  echo "Please set the API key with: export OPENAI_API_KEY=sk-..."
+fi
 
 # Run the server with UVX
-uvx run mcp-server-pytorch
+uvx mcp-server-pytorch --transport sse --host 127.0.0.1 --port 5000 --data-dir ./data

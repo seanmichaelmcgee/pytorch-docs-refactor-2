@@ -1,5 +1,7 @@
 # PyTorch Documentation Search Tool - Refactoring Implementation Summary
 
+## MCP Integration Fixes (April 2025 Update)
+
 ## Overview
 
 The PyTorch Documentation Search Tool has been significantly refactored to improve architecture, error handling, logging, and overall maintainability. This document summarizes the changes made during the refactoring process.
@@ -146,6 +148,55 @@ The tool now recognizes more environment variables with a standardized prefix:
 
 The CLI commands remain largely the same, but with improved error handling and logging.
 
+## MCP Integration Fixes (April 2025)
+
+The following critical fixes were implemented to resolve MCP integration issues:
+
+### 1. UVX Configuration Fix
+
+The `.uvx/tool.json` file was updated to use the proper UVX-native approach instead of shell scripts with invalid syntax:
+
+**Before:**
+```json
+"entrypoint": {
+  "stdio": {
+    "command": "bash",
+    "args": ["-c", "source ~/miniconda3/etc/profile.d/conda.sh && conda activate pytorch_docs_search && python -m mcp_server_pytorch"]
+  },
+  "sse": {
+    "command": "bash",
+    "args": ["-c", "source ~/miniconda3/etc/profile.d/conda.sh && conda activate pytorch_docs_search && python -m mcp_server_pytorch --transport sse"]
+  }
+}
+```
+
+**After:**
+```json
+"entrypoint": {
+  "command": "uvx",
+  "args": ["mcp-server-pytorch", "--transport", "sse", "--host", "127.0.0.1", "--port", "5000"]
+},
+"env": {
+  "OPENAI_API_KEY": "${OPENAI_API_KEY}"
+}
+```
+
+### 2. OpenAI API Key Validation
+
+Added explicit validation and error messaging for the required OpenAI API key in the run scripts.
+
+### 3. Data Directory Configuration
+
+Added a `--data-dir` command line parameter to specify the data directory location and update all relevant paths.
+
+### 4. Tool Name Standardization
+
+Fixed the mismatch between the tool name in registration scripts (`pytorch_search`) and the actual name in the descriptor (`search_pytorch_docs`).
+
+### 5. Documentation Updates
+
+Updated the documentation with clear instructions for setup, usage, and troubleshooting.
+
 ## Next Steps
 
 1. **Command Line Interface Refactoring**: Update CLI to use the new architecture
@@ -153,3 +204,6 @@ The CLI commands remain largely the same, but with improved error handling and l
 3. **Enhanced Testing**: Add more unit and integration tests
 4. **Performance Optimization**: Profile and optimize critical paths
 5. **Documentation Updates**: Comprehensive API documentation
+6. **Enhanced Data Validation**: Add validation on startup for missing or invalid data files 
+7. **Configuration Management**: Create a configuration file for persistent settings
+8. **UI Improvements**: Add a simple web interface for status monitoring

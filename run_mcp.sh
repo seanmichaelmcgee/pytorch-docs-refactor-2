@@ -10,6 +10,14 @@ set -x
 # Export log file path for detailed logging
 export MCP_LOG_FILE="./mcp_server.log"
 
+# Check for OpenAI API key
+if [ -z "$OPENAI_API_KEY" ]; then
+  echo "Warning: OPENAI_API_KEY environment variable not set."
+  echo "The server will fail to start without this variable."
+  echo "Please set the API key with: export OPENAI_API_KEY=sk-..."
+  exit 1
+fi
+
 # Source conda to ensure it's available
 if [ -f "$HOME/miniconda3/etc/profile.d/conda.sh" ]; then
     source "$HOME/miniconda3/etc/profile.d/conda.sh"
@@ -23,5 +31,5 @@ fi
 # Activate the conda environment
 conda activate pytorch_docs_search
 
-# Run the server with stdio transport
-exec python -m mcp_server_pytorch --transport stdio
+# Run the server with stdio transport and specify data directory
+exec python -m mcp_server_pytorch --transport stdio --data-dir ./data

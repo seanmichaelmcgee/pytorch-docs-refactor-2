@@ -14,6 +14,8 @@ This tool enables developers to efficiently search PyTorch documentation using n
 - Basic embedding caching for efficiency
 - Claude Code integration through Model Context Protocol (MCP)
 - Modular architecture with support for multiple transport methods
+- Flexible data directory configuration
+- UVX integration for seamless deployment
 
 ## Getting Started
 
@@ -33,10 +35,14 @@ Using UVX provides a seamless integration with Claude Code:
 # First, make sure you have the UVX package manager
 pip install uvx
 
-# Add the tool to Claude CLI directly from GitHub or local path
-claude mcp add pytorch_search uvx mcp-server-pytorch
-# or from a local path
-claude mcp add pytorch_search uvx /path/to/pytorch-docs-search
+# Export your OpenAI API key (required)
+export OPENAI_API_KEY="your-api-key"
+
+# Add the tool to Claude CLI using the correct tool name
+claude mcp add search_pytorch_docs http://localhost:5000/events --transport sse
+
+# Or directly with UVX
+uvx mcp-server-pytorch --transport sse --host 127.0.0.1 --port 5000 --data-dir ./data
 
 # Verify it's registered
 claude mcp list
@@ -68,10 +74,10 @@ claude mcp list
    ./register_mcp.sh
    
    # If you want to use server mode (SSE)
-   # First, start the server
-   python -m mcp_server_pytorch --transport sse
+   # First, start the server with data directory
+   python -m mcp_server_pytorch --transport sse --data-dir ./data
    # Then in another terminal
-   claude mcp add --transport sse pytorch_search http://localhost:5000/events
+   claude mcp add search_pytorch_docs http://localhost:5000/events --transport sse
    ```
 
 ## Processing Documentation
@@ -180,22 +186,39 @@ ptsearch search --interactive
 
 ### Common Issues
 
-1. **Connection Timeout**
-   - Ensure your OPENAI_API_KEY is correctly set
+1. **Connection Timeout or ConfigError**
+   - Ensure your OPENAI_API_KEY is correctly set and exported
    - Check if the ChromaDB database has been properly initialized
+   - Verify the data directory exists and contains required files
    - Verify your environment has all required dependencies
 
 2. **No Results Returned**
    - Make sure you've processed and indexed documentation
+   - Ensure the --data-dir parameter points to the correct location
    - Check the server logs for any errors
 
 3. **Tool Not Found**
    - Verify the tool is correctly registered with `claude mcp list`
-   - Check that the tool name matches in both registration and descriptor
+   - Make sure you're using the exact name "search_pytorch_docs" when registering
+   - Check that the server is running when attempting to use the tool
+
+4. **UVX Integration Issues**
+   - Ensure the .uvx/tool.json file is properly configured
+   - Verify that the OPENAI_API_KEY is set in the environment
+   - Try using the direct command: `uvx mcp-server-pytorch --transport sse --data-dir ./data`
 
 ### Checking Logs
 
 By default, the server logs to stderr and to a file named `mcp_server.log`. Check this file for detailed information about any issues.
+
+### Recent Fixes
+
+Several critical issues have been fixed in the latest update:
+- UVX configuration has been corrected for proper integration
+- OpenAI API key validation has been improved with clear error messages
+- A --data-dir parameter has been added to specify where data is stored
+- Tool name registration has been standardized to match the descriptor
+- Documentation has been updated with clearer instructions
 
 ## License
 

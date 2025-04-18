@@ -3,19 +3,16 @@
   "version": "0.1.0",
   "description": "PyTorch Documentation Search Tool with MCP integration",
   "entrypoint": {
-    "stdio": {
-      "command": "bash",
-      "args": ["-c", "source ~/miniconda3/etc/profile.d/conda.sh && conda activate pytorch_docs_search && python -m mcp_server_pytorch"]
-    },
-    "sse": {
-      "command": "bash",
-      "args": ["-c", "source ~/miniconda3/etc/profile.d/conda.sh && conda activate pytorch_docs_search && python -m mcp_server_pytorch --transport sse"]
-    }
+    "command": "uvx",
+    "args": ["mcp-server-pytorch", "--transport", "sse", "--host", "127.0.0.1", "--port", "5000"]
   },
   "requires": [
     "openai",
     "flask",
     "chromadb",
     "flask-cors"
-  ]
+  ],
+  "env": {
+    "OPENAI_API_KEY": "${OPENAI_API_KEY}"
+  }
 }

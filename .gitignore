@@ -1,0 +1,23 @@
+# Environment and Python
+.env
+__pycache__/
+*.py[cod]
+*.class
+*.so
+.Python
+venv/
+ENV/
+
+# Data files
+data/chunks.json
+data/chunks_with_embeddings.json
+data/embedding_cache/*.json
+
+# Logs
+*.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo

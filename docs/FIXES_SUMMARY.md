@@ -1,137 +1,132 @@
-# PyTorch Documentation Search MCP Integration Fixes
+# PyTorch Documentation Search Tool - Fixes Summary
 
-This document summarizes the key fixes implemented to resolve issues with the PyTorch Documentation Search MCP integration.
+This document summarizes the fixes implemented to resolve issues with the PyTorch Documentation Search tool.
 
-## Issues Fixed
+## MCP Integration Fixes (April 2025)
 
-### 1. UVX Tool Configuration
+### UVX Configuration
 
-The `tool.json` file contained placeholder ellipses instead of proper configuration:
+The `.uvx/tool.json` file was updated to use the proper UVX-native configuration:
 
+**Before:**
 ```json
-{
-  "tools": [
-    {
-      "name": "pytorch_docs_search",
-      "description": "Search PyTorch documentation",
-      "entry_point": "...",
-      "schema": "..."
-    }
-  ]
+"entrypoint": {
+  "stdio": {
+    "command": "bash",
+    "args": ["-c", "source ~/miniconda3/etc/profile.d/conda.sh && conda activate pytorch_docs_search && python -m mcp_server_pytorch"]
+  },
+  "sse": {
+    "command": "bash",
+    "args": ["-c", "source ~/miniconda3/etc/profile.d/conda.sh && conda activate pytorch_docs_search && python -m mcp_server_pytorch --transport sse"]
+  }
 }
 ```
 
-**Fix**: Updated with correct entry point and schema:
-
+**After:**
 ```json
-{
-  "tools": [
-    {
-      "name": "pytorch_docs_search", 
-      "description": "Search PyTorch documentation",
-      "entry_point": "/home/smcgee/MLprojects/Utils/pytorch-docs-refactor-2/run_mcp_uvx.sh",
-      "schema": {
-        "type": "function",
-        "function": {
-          "name": "pytorch_docs_search",
-          "description": "Search PyTorch documentation for relevant information",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "query": {
-                "type": "string",
-                "description": "The search query"
-              }
-            },
-            "required": ["query"]
-          }
-        }
-      }
-    }
-  ]
+"entrypoint": {
+  "command": "uvx",
+  "args": ["mcp-server-pytorch", "--transport", "sse", "--host", "127.0.0.1", "--port", "5000"]
+},
+"env": {
+  "OPENAI_API_KEY": "${OPENAI_API_KEY}"
 }
 ```
 
-### 2. Missing OpenAI API Key Validation
+### Data Directory Configuration
 
-The code didn't properly validate the presence of the `OPENAI_API_KEY` environment variable.
-
-**Fix**: Added proper environment variable validation and error handling:
+Added a `--data-dir` command line parameter to specify where data files are stored:
 
 ```python
-def validate_environment():
-    if not os.environ.get("OPENAI_API_KEY"):
-        raise EnvironmentError(
-            "OPENAI_API_KEY environment variable is required but not set"
-        )
+parser.add_argument("--data-dir", help="Path to the data directory containing chunks.json and chunks_with_embeddings.json")
+
+# Set data directory if provided
+if args.data_dir:
+    # Update paths to include the provided data directory
+    data_dir = os.path.abspath(args.data_dir)
+    logger.info(f"Using custom data directory: {data_dir}")
+    settings.default_chunks_path = os.path.join(data_dir, "chunks.json")
+    settings.default_embeddings_path = os.path.join(data_dir, "chunks_with_embeddings.json")
+    settings.db_dir = os.path.join(data_dir, "chroma_db")
+    settings.cache_dir = os.path.join(data_dir, "embedding_cache")
 ```
 
-### 3. Conflicting Server Implementations
+### Tool Name Standardization
 
-The codebase had two different server implementations that were causing conflicts.
+Fixed the mismatch between the tool name in registration scripts and the actual name in the descriptor:
 
-**Fix**: Consolidated server implementations into a single, unified approach, ensuring the MCP protocol handler properly interfaces with the core search functionality.
+**Before:**
+```bash
+claude mcp add pytorch_search stdio "${RUN_SCRIPT}"
+```
 
-### 4. Data Directory Parameter
+**After:**
+```bash
+claude mcp add search_pytorch_docs stdio "${RUN_SCRIPT}"
+```
 
-There was no way to override the data directory, making deployment and testing difficult.
+### NumPy 2.0 Compatibility Fix
 
-**Fix**: Added a `data_dir` parameter to configuration:
+Added a monkey patch for NumPy 2.0+ compatibility with ChromaDB:
 
 ```python
-# In config/settings.py
-DATA_DIR = os.environ.get("PYTORCH_DOCS_DATA_DIR", os.path.join(ROOT_DIR, "data"))
+# Create a compatibility utility module
+# ptsearch/utils/compat.py
+
+"""
+Compatibility utilities for handling API and library version differences.
+"""
+
+import numpy as np
+
+# Add monkey patch for NumPy 2.0+ compatibility with ChromaDB
+if not hasattr(np, 'float_'):
+    np.float_ = np.float64
 ```
 
-With command-line override support:
+Then imported in the core `__init__.py` file:
 
 ```python
-parser.add_argument(
-    "--data-dir", 
-    type=str,
-    help="Override default data directory location"
-)
+# Import compatibility patches first
+from ptsearch.utils.compat import *
 ```
 
-### 5. Tool Registration Name Mismatch
+This addresses the error: `AttributeError: `np.float_` was removed in the NumPy 2.0 release. Use `np.float64` instead.`
 
-The tool registration name didn't match the descriptor name required by the MCP protocol.
-
-**Fix**: Aligned the names to ensure consistent identification:
+We also directly patched the ChromaDB library file to ensure compatibility:
 
 ```python
-# In protocol/descriptor.py
-TOOL_NAME = "pytorch_docs_search"
-
-# In registration script
-TOOL_NAME = "pytorch_docs_search"
+# In chromadb/api/types.py
+# Images
+# Patch for NumPy 2.0+ compatibility
+if not hasattr(np, 'float_'):
+    np.float_ = np.float64
+ImageDType = Union[np.uint, np.int_, np.float_]
 ```
 
-## Testing the Fixes
+### OpenAI API Key Validation
 
-To verify these fixes:
+Improved validation of the OpenAI API key in run scripts and provided clearer error messages:
 
-1. Ensure environment is set up:
-   ```bash
-   conda env create -f environment.yml
-   conda activate pytorch_docs_search
-   export OPENAI_API_KEY="your-api-key"
-   ```
+```bash
+# Check for OpenAI API key
+if [ -z "$OPENAI_API_KEY" ]; then
+  echo "Warning: OPENAI_API_KEY environment variable not set."
+  echo "The server will fail to start without this variable."
+  echo "Please set the API key with: export OPENAI_API_KEY=sk-..."
+  exit 1
+fi
+```
 
-2. Register the MCP tool:
-   ```bash
-   ./register_mcp.sh
-   ```
+## Documentation Updates
 
-3. Run the MCP server:
-   ```bash
-   ./run_mcp_uvx.sh
-   ```
+1. **README.md**: Updated with clearer installation and usage instructions
+2. **MCP_INTEGRATION.md**: Improved with correct tool names and data directory information
+3. **MIGRATION_REPORT.md**: Updated to reflect the fixed status of the integration
+4. **refactoring_implementation_summary.md**: Added section on MCP integration fixes
 
-4. Test using the MCP client:
-   ```bash
-   # From a separate terminal
-   claude -m "Search the PyTorch docs for information about tensor operations"
-   ```
+## Next Steps
 
-The server logs should show successful query processing, and Claude should respond with relevant PyTorch documentation.
+1. **Enhanced Data Validation**: Add validation on startup for missing or invalid data files
+2. **Configuration Management**: Create a configuration file for persistent settings
+3. **UI Improvements**: Add a simple web interface for status monitoring

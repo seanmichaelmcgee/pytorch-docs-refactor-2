@@ -44,6 +44,9 @@ def main():
     server_parser.add_argument("--host", default="0.0.0.0", help="Server host")
     server_parser.add_argument("--port", "-p", type=int, default=5000, help="Server port")
     
+    # Stdio command
+    stdio_parser = subparsers.add_parser("stdio", help="Start MCP-compatible stdio server")
+    
     args = parser.parse_args()
     
     if args.command == "process":
@@ -105,6 +108,10 @@ def main():
     elif args.command == "server":
         from ptsearch.mcp import run_server
         run_server(host=args.host, port=args.port)
+    
+    elif args.command == "stdio":
+        from ptsearch.stdio import main as stdio_main
+        stdio_main()
     
     else:
         parser.print_help()

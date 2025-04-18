@@ -1,0 +1,24 @@
+{
+  "name": "pytorch-docs-search",
+  "version": "0.1.0",
+  "description": "PyTorch Documentation Search Tool with MCP integration",
+  "entrypoint": {
+    "sse": {
+      "command": "mcp-server-pytorch"
+    },
+    "stdio": {
+      "command": "mcp-server-pytorch-stdio"
+    }
+  },
+  "requires": [
+    "openai",
+    "flask",
+    "chromadb",
+    "tree-sitter",
+    "tree-sitter-languages",
+    "python-dotenv",
+    "tqdm",
+    "numpy",
+    "flask-cors"
+  ]
+}

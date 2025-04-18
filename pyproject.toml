@@ -25,6 +25,7 @@ dependencies = [
 [project.scripts]
 ptsearch = "ptsearch.cli:main"
 mcp-server-pytorch = "ptsearch.mcp:main"
+mcp-server-pytorch-stdio = "ptsearch.stdio:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
